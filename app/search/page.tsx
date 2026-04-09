@@ -7,6 +7,7 @@ import { articles, rawArticles } from "@/src/db/schema";
 import type { ArticleRow, RawArticleRow } from "@/src/db/types";
 import { Pagination } from "@/components/ui/pagination";
 import { buildPageHref, parsePage } from "@/src/utils/pagination";
+import { hostnameFromUrl } from "@/src/utils/url";
 import { SearchForm } from "./search-form";
 
 const SEARCH_PAGE_SIZE = 40;
@@ -145,13 +146,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         ) : (
           <ul className="divide-y divide-zinc-300/40 rounded-xl border border-zinc-300/40 bg-white">
             {results.map((article) => {
-              const host = (() => {
-                try {
-                  return new URL(article.url).host;
-                } catch {
-                  return article.url;
-                }
-              })();
+              const host = hostnameFromUrl(article.url);
               return (
                 <li key={article.id}>
                   <Link

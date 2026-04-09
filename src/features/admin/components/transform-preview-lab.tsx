@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { RawArticleRow } from "@/src/db/types";
+import { callAdminApi } from "@/src/features/admin/api-client";
 
 type RawArticlePreviewRow = Pick<
   RawArticleRow,
@@ -25,42 +26,15 @@ type TransformPreviewResponse = {
   };
 };
 
-class ApiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-async function postTransformPreview(
-  adminKey: string,
-  rawArticleId: string,
-): Promise<TransformPreviewResponse> {
-  const res = await fetch("/api/admin/transform-preview", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-key": adminKey,
-    },
-    body: JSON.stringify({ rawArticleId }),
-  });
-
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    throw new ApiError(
-      typeof body.error === "string" ? body.error : `Request failed (${res.status})`,
-    );
-  }
-
-  return body as TransformPreviewResponse;
-}
-
 export function TransformPreviewLab({ rawArticles }: { rawArticles: RawArticlePreviewRow[] }) {
   const [adminKey, setAdminKey] = useState("");
   const [selectedRawArticleId, setSelectedRawArticleId] = useState<string | null>(null);
 
   const previewMutation = useMutation<TransformPreviewResponse, Error, string>({
-    mutationFn: (rawArticleId) => postTransformPreview(adminKey, rawArticleId),
+    mutationFn: (rawArticleId) =>
+      callAdminApi<TransformPreviewResponse>("/api/admin/transform-preview", adminKey, {
+        rawArticleId,
+      }),
     onSuccess: () => {
       toast.success("Preview transform complete.");
     },

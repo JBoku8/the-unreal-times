@@ -13,27 +13,39 @@ export type ProcessResult = {
   remainingPending: number;
 };
 
+// 10 minutes — jobs stuck in "processing" longer than this are considered stale.
+const STALE_JOB_MS = 10 * 60 * 1000;
+
+function claimableWhereClause(staleThreshold: Date, rawArticleId?: string) {
+  return and(
+    rawArticleId ? eq(transformationJobs.rawArticleId, rawArticleId) : undefined,
+    or(
+      eq(transformationJobs.status, "pending"),
+      and(
+        eq(transformationJobs.status, "processing"),
+        lt(transformationJobs.startedAt, staleThreshold),
+      ),
+    ),
+    lt(transformationJobs.attempts, 3),
+  );
+}
+
+async function countRemainingJobs(staleThreshold: Date, rawArticleId?: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(transformationJobs)
+    .where(claimableWhereClause(staleThreshold, rawArticleId));
+  return row?.count ?? 0;
+}
+
 // Picks a limited set of eligible jobs, claims them, and runs them.
 export async function processJobBatch(batchSize = 10): Promise<ProcessResult> {
-  // Jobs that have been processing for longer than 10 minutes are considered stale and can be reclaimed.
-  const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes
+  const staleThreshold = new Date(Date.now() - STALE_JOB_MS);
 
-  // Select jobs that can safely be claimed now.
   const claimable = await db
     .select({ id: transformationJobs.id })
     .from(transformationJobs)
-    .where(
-      and(
-        or(
-          eq(transformationJobs.status, "pending"),
-          and(
-            eq(transformationJobs.status, "processing"),
-            lt(transformationJobs.startedAt, staleThreshold),
-          ),
-        ),
-        lt(transformationJobs.attempts, 3),
-      ),
-    )
+    .where(claimableWhereClause(staleThreshold))
     .orderBy(asc(transformationJobs.createdAt))
     .limit(batchSize);
 
@@ -55,53 +67,19 @@ export async function processJobBatch(batchSize = 10): Promise<ProcessResult> {
     .returning();
 
   const { succeeded, failed } = await processClaimedJobs(claimed);
+  const remainingPending = await countRemainingJobs(staleThreshold);
 
-  // Count jobs that are still eligible to be processed.
-  const [remaining] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(transformationJobs)
-    .where(
-      and(
-        or(
-          eq(transformationJobs.status, "pending"),
-          and(
-            eq(transformationJobs.status, "processing"),
-            lt(transformationJobs.startedAt, staleThreshold),
-          ),
-        ),
-        lt(transformationJobs.attempts, 3),
-      ),
-    );
-
-  return {
-    processed: claimed.length,
-    succeeded,
-    failed,
-    remainingPending: remaining?.count ?? 0,
-  };
+  return { processed: claimed.length, succeeded, failed, remainingPending };
 }
 
 // Processes all claimable jobs tied to a single raw article.
 export async function processJobsForRawArticle(rawArticleId: string): Promise<ProcessResult> {
-  // Jobs that have been processing for longer than 10 minutes are considered stale and can be reclaimed.
-  const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes
+  const staleThreshold = new Date(Date.now() - STALE_JOB_MS);
 
   const claimable = await db
     .select({ id: transformationJobs.id })
     .from(transformationJobs)
-    .where(
-      and(
-        eq(transformationJobs.rawArticleId, rawArticleId),
-        or(
-          eq(transformationJobs.status, "pending"),
-          and(
-            eq(transformationJobs.status, "processing"),
-            lt(transformationJobs.startedAt, staleThreshold),
-          ),
-        ),
-        lt(transformationJobs.attempts, 3),
-      ),
-    )
+    .where(claimableWhereClause(staleThreshold, rawArticleId))
     .orderBy(asc(transformationJobs.createdAt));
 
   if (claimable.length === 0) {
@@ -120,30 +98,9 @@ export async function processJobsForRawArticle(rawArticleId: string): Promise<Pr
     .returning();
 
   const { succeeded, failed } = await processClaimedJobs(claimed);
+  const remainingPending = await countRemainingJobs(staleThreshold, rawArticleId);
 
-  const [remaining] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(transformationJobs)
-    .where(
-      and(
-        eq(transformationJobs.rawArticleId, rawArticleId),
-        or(
-          eq(transformationJobs.status, "pending"),
-          and(
-            eq(transformationJobs.status, "processing"),
-            lt(transformationJobs.startedAt, staleThreshold),
-          ),
-        ),
-        lt(transformationJobs.attempts, 3),
-      ),
-    );
-
-  return {
-    processed: claimed.length,
-    succeeded,
-    failed,
-    remainingPending: remaining?.count ?? 0,
-  };
+  return { processed: claimed.length, succeeded, failed, remainingPending };
 }
 
 // Runs each claimed job and writes done/failed status back to DB.
@@ -158,7 +115,7 @@ async function processClaimedJobs(
       if (job.transformationType === "humorous") {
         await processHumorousJob(job.rawArticleId);
       } else if (job.transformationType === "embedding") {
-        const skipped = await processEmbeddingJob(job.id, job.rawArticleId);
+        const skipped = await processEmbeddingJob(job.rawArticleId);
         if (skipped) continue; // stays pending, picked up next batch
       }
       await db
@@ -218,9 +175,7 @@ async function processHumorousJob(rawArticleId: string): Promise<void> {
 
 // Returns true when skipped because the source article is not ready yet.
 // Creates and stores an embedding on the humorous article variant, using raw source content.
-// This is implemented now to prepare data for future similarity detection/search.
-async function processEmbeddingJob(jobId: string, rawArticleId: string): Promise<boolean> {
-  void jobId; // reserved for future use
+async function processEmbeddingJob(rawArticleId: string): Promise<boolean> {
   const [humorous] = await db
     .select({ id: articles.id })
     .from(articles)

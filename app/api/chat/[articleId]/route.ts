@@ -15,26 +15,24 @@ import {
   getOrCreateConversation,
   setActiveConversation,
 } from "@/src/features/chat/services/conversations";
+import { messageText } from "@/src/features/chat/utils";
+import { isValidUUID } from "@/src/utils/url";
 
 export const maxDuration = 30;
 
 type ChatArticleContextRow = Pick<ArticleRow, "id" | "title" | "content"> &
   Pick<RawArticleRow, "url" | "rawContent">;
 
-function messageText(message: UIMessage): string {
-  return (
-    message.parts
-      ?.filter((part) => part.type === "text")
-      .map((part) => ("text" in part ? part.text : ""))
-      .join("") ?? ""
-  );
-}
-
 export async function POST(
   req: Request,
   context: { params: Promise<{ articleId: string }> },
 ) {
   const { articleId } = await context.params;
+
+  if (!isValidUUID(articleId)) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
   const url = new URL(req.url);
   const payload = await req.json();
   const parsed = chatRequestSchema.safeParse(payload);

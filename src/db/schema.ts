@@ -2,7 +2,6 @@ import {
   boolean,
   index,
   integer,
-  jsonb,
   pgTable,
   text,
   timestamp,
@@ -89,7 +88,6 @@ export const conversations = pgTable(
       .references(() => articles.id, { onDelete: "cascade" }),
     browserId: varchar("browser_id", { length: 128 }).notNull().default(""),
     isActive: boolean("is_active").notNull().default(true),
-    messages: jsonb("messages").$type<unknown[]>().default([]).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

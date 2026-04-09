@@ -5,6 +5,7 @@ import { db } from "@/src/db/client";
 import { articles, feeds, rawArticles, transformationJobs } from "@/src/db/schema";
 import { Pagination } from "@/components/ui/pagination";
 import { buildPageHref, parsePage } from "@/src/utils/pagination";
+import { hostnameFromUrl } from "@/src/utils/url";
 
 const PAGE_SIZE = 9;
 
@@ -205,13 +206,7 @@ export default async function Home({
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {articleRows.map((article, index) => {
-              const host = (() => {
-                try {
-                  return new URL(article.url).host;
-                } catch {
-                  return article.url;
-                }
-              })();
+              const host = hostnameFromUrl(article.url);
               const isLead = index === 0;
 
               return (

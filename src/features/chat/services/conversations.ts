@@ -4,6 +4,13 @@ import { conversations, messages } from "@/src/db/schema";
 
 type ChatRole = "user" | "assistant";
 
+async function deactivateAllConversations(articleId: string, browserId: string) {
+  await db
+    .update(conversations)
+    .set({ isActive: false })
+    .where(and(eq(conversations.articleId, articleId), eq(conversations.browserId, browserId)));
+}
+
 export async function getActiveConversation(articleId: string, browserId: string) {
   const [row] = await db
     .select({ id: conversations.id })
@@ -26,12 +33,7 @@ export async function setActiveConversation(
   browserId: string,
   conversationId: string,
 ) {
-  await db
-    .update(conversations)
-    .set({ isActive: false })
-    .where(
-      and(eq(conversations.articleId, articleId), eq(conversations.browserId, browserId)),
-    );
+  await deactivateAllConversations(articleId, browserId);
 
   await db
     .update(conversations)
@@ -46,12 +48,7 @@ export async function setActiveConversation(
 }
 
 export async function createNewConversation(articleId: string, browserId: string) {
-  await db
-    .update(conversations)
-    .set({ isActive: false })
-    .where(
-      and(eq(conversations.articleId, articleId), eq(conversations.browserId, browserId)),
-    );
+  await deactivateAllConversations(articleId, browserId);
 
   const [inserted] = await db
     .insert(conversations)

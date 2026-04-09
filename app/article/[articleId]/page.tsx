@@ -6,6 +6,7 @@ import { ChatPanel } from "@/src/features/chat/components/chat-panel";
 import { db } from "@/src/db/client";
 import { articles, rawArticles } from "@/src/db/schema";
 import type { ArticleRow, RawArticleRow } from "@/src/db/types";
+import { isValidUUID } from "@/src/utils/url";
 
 type ArticlePageRow = Pick<ArticleRow, "id" | "title" | "content"> &
   Pick<RawArticleRow, "url" | "publishedAt" | "rawContent">;
@@ -16,6 +17,8 @@ export default async function ArticlePage({
   params: Promise<{ articleId: string }>;
 }) {
   const { articleId } = await params;
+
+  if (!isValidUUID(articleId)) notFound();
 
   const rows = await db
     .select({

@@ -1,6 +1,6 @@
-# RSS LLM Reader (Fullstack Skeleton)
+# The Unreal Times — Satirical RSS Reader
 
-Modern TypeScript fullstack starter for an RSS feed reader where users can chat with individual articles.
+TypeScript fullstack app: an RSS feed reader where articles are rewritten satirically by an LLM, and users can chat with each article in context.
 
 ## Stack
 
@@ -8,7 +8,7 @@ Modern TypeScript fullstack starter for an RSS feed reader where users can chat 
 - Backend: Next.js Route Handlers + Vercel AI SDK Core + Zod
 - Database: PostgreSQL 16 + pgvector via Drizzle ORM
 - Cache: Redis 7
-- LLM: Provider-resolver defaulting to OpenAI GPT-4o
+- LLM: Provider-resolver defaulting to OpenAI (`gpt-5.4-nano`)
 
 ## Request Handling Pattern
 
@@ -34,22 +34,16 @@ Both are client components and use `unstable_retry()` to attempt recovery.
 cp .env.example .env
 ```
 
-2) Start all services
+2) Start all services (dev, with hot reload)
 
 ```bash
-docker compose up --build
+pnpm compose:up
 ```
 
 3) Apply DB migrations (in another terminal)
 
 ```bash
 docker compose exec app pnpm db:migrate
-```
-
-If you are not using Docker Compose, run:
-
-```bash
-pnpm db:migrate
 ```
 
 4) Open app
@@ -71,15 +65,65 @@ pnpm dev
 
 `POST /api/admin/fetch-feeds`
 
-Header:
+Fetches all RSS feeds from `RSS_FEED_URLS`, upserts feeds and raw articles, creates transformation jobs.
 
-- `x-admin-key: <ADMIN_KEY>`
-
-Example:
+Header: `x-admin-key: <ADMIN_KEY>`
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/fetch-feeds \
   -H "x-admin-key: change-me"
+```
+
+### Admin batch processing
+
+`POST /api/admin/process-articles`
+
+Processes a batch of pending transformation jobs (default 10, max 50).
+
+```bash
+curl -X POST http://localhost:3000/api/admin/process-articles \
+  -H "x-admin-key: change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"batchSize": 20}'
+```
+
+### Admin single-article transform
+
+`POST /api/admin/transform-article`
+
+Resets and re-runs all transformation jobs for one raw article.
+
+```bash
+curl -X POST http://localhost:3000/api/admin/transform-article \
+  -H "x-admin-key: change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"rawArticleId": "<uuid>"}'
+```
+
+### Admin transform preview (dry-run)
+
+`POST /api/admin/transform-preview`
+
+Runs the humorous transform for a raw article but does not persist the result.
+
+```bash
+curl -X POST http://localhost:3000/api/admin/transform-preview \
+  -H "x-admin-key: change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"rawArticleId": "<uuid>"}'
+```
+
+### Admin untransformed article list
+
+`POST /api/admin/raw-articles`
+
+Returns up to 50 raw articles that have no transformed `articles` row yet, optionally filtered by feed.
+
+```bash
+curl -X POST http://localhost:3000/api/admin/raw-articles \
+  -H "x-admin-key: change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"feedId": "<optional-uuid>"}'
 ```
 
 ### Article chat (streaming)
@@ -90,7 +134,7 @@ curl -X POST http://localhost:3000/api/admin/fetch-feeds \
 
 `POST /api/chat/:articleId/conversations`
 
-Body shape:
+Body shape for `POST /api/chat/:articleId`:
 
 ```json
 {
@@ -99,7 +143,7 @@ Body shape:
   "messages": [
     {
       "role": "user",
-      "content": "Summarize this article."
+      "parts": [{ "type": "text", "text": "Summarize this article." }]
     }
   ]
 }
@@ -118,8 +162,8 @@ The app stores one canonical raw article and then produces transformed outputs a
 
 ### `transformationType` values
 
-- `humorous`: an LLM-rewritten variant of the raw article (the stored/readable article row)
-- `embedding`: a background job type that computes vector embedding for the `humorous` row
+- `humorous`: an LLM-rewritten satirical variant of the raw article (the stored/readable article row)
+- `embedding`: a background job type that computes a vector embedding for the `humorous` row
 
 Notes:
 
@@ -136,25 +180,26 @@ Notes:
 Retry behavior:
 
 - Jobs are retried up to 3 attempts.
-- Stale `processing` jobs are eligible for reclaim after timeout.
-- Manual retry for MVP is done by resetting `status = "pending"` and `attempts = 0` in DB.
+- Stale `processing` jobs (stuck for more than 10 minutes) are eligible for reclaim.
+- Manual retry via the admin UI resets `status = "pending"` and `attempts = 0`.
 
 ## Useful Commands
 
 ```bash
-pnpm dev
 pnpm lint
 pnpm build
 pnpm db:generate
 pnpm db:migrate
 pnpm db:clear-feeds -- --yes
-pnpm compose:up
+pnpm compose:up          # dev (hot reload)
+pnpm compose:up:prod     # production
 pnpm compose:down
 ```
 
 With Docker Compose:
 
 ```bash
+docker compose exec app pnpm db:migrate
 docker compose exec app pnpm db:clear-feeds -- --yes
 ```
 
@@ -166,6 +211,6 @@ See `.env.example`:
 - `REDIS_URL`
 - `AI_PROVIDER` (`openai` by default)
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` (`gpt-4o` by default)
+- `OPENAI_MODEL` (`gpt-5.4-nano` by default)
 - `ADMIN_KEY`
 - `RSS_FEED_URLS` (comma-separated)

@@ -1,9 +1,9 @@
 "use client";
 
-import { type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { callAdminApi } from "@/src/features/admin/api-client";
 
 type FetchFeedsResponse = {
   feedsProcessed?: number;
@@ -12,35 +12,9 @@ type FetchFeedsResponse = {
   transformationJobsCreated?: number;
 };
 
-class ApiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-async function postFetchFeeds(adminKey: string): Promise<FetchFeedsResponse> {
-  const res = await fetch("/api/admin/fetch-feeds", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-key": adminKey,
-    },
-  });
-
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    throw new ApiError(
-      typeof body.error === "string" ? body.error : `Request failed (${res.status})`,
-    );
-  }
-
-  return body as FetchFeedsResponse;
-}
-
 export function TriggerFetchForm({ adminKey }: { adminKey: string }) {
   const fetchFeedsMutation = useMutation<FetchFeedsResponse, Error>({
-    mutationFn: () => postFetchFeeds(adminKey),
+    mutationFn: () => callAdminApi<FetchFeedsResponse>("/api/admin/fetch-feeds", adminKey),
     onSuccess: (data) => {
       const rawArticlesInserted = data.rawArticleRowsUpserted ?? 0;
       toast.success(
@@ -52,7 +26,7 @@ export function TriggerFetchForm({ adminKey }: { adminKey: string }) {
     },
   });
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     await fetchFeedsMutation.mutateAsync();
   };

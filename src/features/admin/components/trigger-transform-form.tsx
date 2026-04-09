@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { FeedRow, RawArticleRow } from "@/src/db/types";
+import { callAdminApi } from "@/src/features/admin/api-client";
 
 type RawArticlePreview = Pick<RawArticleRow, "id" | "title" | "sourceName" | "createdAt">;
 type FeedPreview = Pick<FeedRow, "id" | "title">;
@@ -18,60 +19,6 @@ type TransformArticleResponse = {
 type RawArticlesResponse = {
   rawArticles?: RawArticlePreview[];
 };
-
-class ApiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-async function postTransformArticle(
-  adminKey: string,
-  rawArticleId: string,
-): Promise<TransformArticleResponse> {
-  const res = await fetch("/api/admin/transform-article", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-key": adminKey,
-    },
-    body: JSON.stringify({ rawArticleId }),
-  });
-
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    throw new ApiError(
-      typeof body.error === "string" ? body.error : `Request failed (${res.status})`,
-    );
-  }
-
-  return body as TransformArticleResponse;
-}
-
-async function postRawArticlesByFeed(
-  adminKey: string,
-  feedId: string | null,
-): Promise<RawArticlePreview[]> {
-  const res = await fetch("/api/admin/raw-articles", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-key": adminKey,
-    },
-    body: JSON.stringify({ feedId }),
-  });
-
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    throw new ApiError(
-      typeof body.error === "string" ? body.error : `Request failed (${res.status})`,
-    );
-  }
-
-  const parsed = body as RawArticlesResponse;
-  return Array.isArray(parsed.rawArticles) ? parsed.rawArticles : [];
-}
 
 export function TriggerTransformForm({
   rawArticles,
@@ -87,7 +34,10 @@ export function TriggerTransformForm({
   const [loadedArticles, setLoadedArticles] = useState<RawArticlePreview[] | null>(null);
 
   const rawArticlesQueryMutation = useMutation<RawArticlePreview[], Error, string | null>({
-    mutationFn: (feedId) => postRawArticlesByFeed(adminKey, feedId),
+    mutationFn: (feedId) =>
+      callAdminApi<RawArticlesResponse>("/api/admin/raw-articles", adminKey, { feedId }).then(
+        (data) => (Array.isArray(data.rawArticles) ? data.rawArticles : []),
+      ),
     onSuccess: (data) => {
       setLoadedArticles(data);
     },
@@ -183,7 +133,10 @@ function RawArticleTransformItem({
   isKeyMissing: boolean;
 }) {
   const transformMutation = useMutation<TransformArticleResponse, Error>({
-    mutationFn: () => postTransformArticle(adminKey, row.id),
+    mutationFn: () =>
+      callAdminApi<TransformArticleResponse>("/api/admin/transform-article", adminKey, {
+        rawArticleId: row.id,
+      }),
     onSuccess: (data) => {
       toast.success(
         `Processed ${data.processed ?? 0} jobs · Success ${data.succeeded ?? 0} · Failed ${data.failed ?? 0}`,

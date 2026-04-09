@@ -8,9 +8,14 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/rss_chat
       REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
 
   db:
     image: pgvector/pgvector:pg16
@@ -20,15 +25,18 @@ services:
       POSTGRES_DB: rss_chat
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    env_file:
-      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     volumes:
       - redis_data:/data
-    env_file:
-      - .env
+    restart: unless-stopped
 
 volumes:
   postgres_data:

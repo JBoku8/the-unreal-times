@@ -1,5 +1,8 @@
 services:
   app:
+    environment:
+      CI: "true"
+      WATCHPACK_POLLING: "true"
     ports:
       - "3000:3000"
     volumes:

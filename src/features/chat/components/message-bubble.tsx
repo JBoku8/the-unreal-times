@@ -2,15 +2,7 @@ import type { UIMessage } from "ai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/src/utils/cn";
-
-function messageText(message: UIMessage): string {
-  return (
-    message.parts
-      ?.filter((part) => part.type === "text")
-      .map((part) => ("text" in part ? part.text : ""))
-      .join("") ?? ""
-  );
-}
+import { messageText } from "@/src/features/chat/utils";
 
 export function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";

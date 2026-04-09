@@ -24,11 +24,11 @@ RSS reader where users can chat with individual articles using an LLM.
 
 **Data flow:**
 1. `POST /api/admin/fetch-feeds` — upserts `feeds` + `raw_articles`, creates `transformation_jobs`
-2. `POST /api/admin/transform-article` — runs a `raw_article` through the pipeline, writes to `articles`
+2. `POST /api/admin/process-articles` — batch-processes pending jobs; `transform-article` reruns a single one
 3. Home/search pages query `articles` via Drizzle; article page adds a chat sidebar
 4. `POST /api/chat/[articleId]` — streams LLM response via Vercel AI SDK → `toUIMessageStreamResponse()`
 
-**DB relationships:** `feeds` → `raw_articles` → `transformation_jobs`; `raw_articles` → `articles` → `conversations` → `messages` (all cascade-delete)
+**DB relationships:** `feeds` → `raw_articles` → `transformation_jobs`; `raw_articles` → `articles` → `conversations` → `messages` (all cascade-delete). Note: `conversations` has no `messages` JSONB column — all chat messages live in the `messages` table.
 
 **Non-obvious paths:**
 
@@ -38,6 +38,9 @@ RSS reader where users can chat with individual articles using an LLM.
 | `src/env.ts` | All env vars — never read `process.env` directly (see `env-config` skill) |
 | `src/ai/provider.ts` | `resolveChatModel()` — provider resolved from `AI_PROVIDER` env var |
 | `src/utils/cn.ts` | `cn()` utility (clsx + tailwind-merge) |
+| `src/utils/url.ts` | `hostnameFromUrl()` + `isValidUUID()` — used in pages and API routes |
+| `src/features/chat/utils.ts` | `messageText()` — extracts plain text from a `UIMessage` |
+| `src/features/admin/api-client.ts` | `callAdminApi()` + `ApiError` — use for all admin fetch calls |
 | `components/ui/` | Primitive UI components (shadcn-style, hand-owned) |
 
 ## Environment Variables

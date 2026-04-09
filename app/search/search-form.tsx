@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState, useTransition } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,7 @@ type SearchFormProps = {
 
 export function SearchForm({ initialQuery }: SearchFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [value, setValue] = useState(initialQuery || searchParams.get("q") || "");
+  const [value, setValue] = useState(initialQuery || "");
   const [isPending, startTransition] = useTransition();
 
   const submit = (event: FormEvent) => {
