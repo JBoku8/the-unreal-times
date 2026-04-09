@@ -6,6 +6,7 @@ import { articles, feeds, rawArticles, transformationJobs } from "@/src/db/schem
 import { Pagination } from "@/components/ui/pagination";
 import { buildPageHref, parsePage } from "@/src/utils/pagination";
 import { hostnameFromUrl } from "@/src/utils/url";
+import { FeedFilterChips } from "@/app/feed-filter-chips";
 
 const PAGE_SIZE = 9;
 
@@ -16,21 +17,6 @@ function normalizeFeedQuery(value: string | string[] | undefined): string[] {
 
   const values = Array.isArray(value) ? value : [value];
   return [...new Set(values.map((entry) => entry.trim()).filter(Boolean))];
-}
-
-function buildFeedHref(selectedFeedIds: string[], feedId: string): string {
-  const nextSelected = selectedFeedIds.includes(feedId)
-    ? selectedFeedIds.filter((id) => id !== feedId)
-    : [...selectedFeedIds, feedId];
-
-  if (nextSelected.length === 0) return "/";
-
-  const params = new URLSearchParams();
-  for (const id of nextSelected) {
-    params.append("feed", id);
-  }
-
-  return `/?${params.toString()}`;
 }
 
 export default async function Home({
@@ -105,7 +91,6 @@ export default async function Home({
     totalCount = 0;
   }
 
-  const selectedFeedSet = new Set(selectedFeedIds);
   const hasActiveFilters = selectedFeedIds.length > 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -142,25 +127,7 @@ export default async function Home({
                 </Link>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {feedOptions.map((feed) => {
-                const isSelected = selectedFeedSet.has(feed.id);
-
-                return (
-                  <Link
-                    key={feed.id}
-                    href={buildFeedHref(selectedFeedIds, feed.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      isSelected
-                        ? "border-violet-700 bg-violet-700 text-white"
-                        : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900"
-                    }`}
-                  >
-                    {feed.title}
-                  </Link>
-                );
-              })}
-            </div>
+            <FeedFilterChips feedOptions={feedOptions} selectedFeedIds={selectedFeedIds} />
           </section>
         )}
 
