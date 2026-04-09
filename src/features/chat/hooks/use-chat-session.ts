@@ -42,6 +42,7 @@ export function useChatSession(articleId: string) {
     return generated;
   });
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [hydratedConversationId, setHydratedConversationId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const transport = useMemo(
@@ -80,7 +81,8 @@ export function useChatSession(articleId: string) {
   const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
-    if (!historyData || isLoading) return;
+    if (!historyData) return;
+    if (hydratedConversationId === historyData.conversationId) return;
     startTransition(() => {
       setConversationId(historyData.conversationId);
       setMessages(
@@ -90,14 +92,16 @@ export function useChatSession(articleId: string) {
           parts: [{ type: "text", text: message.content }],
         })),
       );
+      setHydratedConversationId(historyData.conversationId);
     });
-  }, [historyData, isLoading, setMessages]);
+  }, [historyData, hydratedConversationId, setMessages]);
 
   const newConversationMutation = useMutation({
     mutationFn: () => postNewConversation(articleId, browserId),
     onSuccess: (data) => {
       setConversationId(data.conversationId);
       setMessages([]);
+      setHydratedConversationId(null);
       void queryClient.invalidateQueries({ queryKey: ["chatHistory", articleId, browserId] });
     },
   });

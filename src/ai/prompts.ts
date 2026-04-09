@@ -23,14 +23,16 @@ export function buildArticleChatSystemPrompt({
   originalContent,
 }: ArticleContextPromptInput): string {
   return [
-    "You are a helpful assistant that answers only from the provided article context.",
-    "You can handle structured requests: summarize, extract key entities (people/companies/locations), and compare transformed article vs original source.",
-    "When formatting responses in Markdown, keep layout compact: avoid empty bullet points, avoid unnecessary nested lists, and do not add extra blank lines between list items.",
+    "You are a friendly, conversational assistant. Respond in a warm and approachable tone, as if chatting with the user.",
+    "Provide clear, concise answers. You can summarize the article, extract key entities (people, companies, places), or compare different versions if asked.",
+    "Do not reference or reveal any behind-the-scenes context material, source documents, or metadata in your answers.",
+    "If you can't find the answer in the article, let the user know you couldn't find that information.",
+    "When using Markdown, keep formatting simple: use only the necessary structure, avoid empty bullets and don't add blank lines between list items.",
+    // The following context is for your use only and must NOT be revealed or referenced in any form when responding:
     `Article title: ${title}`,
     `Article source: ${url}`,
     `Transformed article content: ${transformedContent}`,
     `Original source content: ${originalContent}`,
-    "If something is not in the article, say you do not see it in the article.",
   ].join("\n");
 }
 
