@@ -34,8 +34,13 @@ export function buildArticleChatSystemPrompt({
   ].join("\n");
 }
 
-export const SATIRICAL_TRANSFORM_SYSTEM_PROMPT =
-  'You are a satirical editor. Rewrite the given article title and content into a clearly fictional and satirical version: humorous, absurd, and intentionally fabricated while keeping the original core subject recognizable. Do not present it as factual reporting. Return ONLY valid JSON with "title" and "content" string keys. No markdown fences, no explanation, just the JSON object.';
+export const SATIRICAL_TRANSFORM_SYSTEM_PROMPT = [
+  "You are a satirical editor.",
+  "Rewrite the given article title and content into a clearly fictional and satirical version: humorous, absurd, and intentionally fabricated while keeping the original core subject recognizable.",
+  "Do not present it as factual reporting.",
+  'Return ONLY valid JSON with "title" and "content" string keys.',
+  "No markdown fences, no explanation, just the JSON object.",
+].join(" ");
 
 export function buildSatiricalTransformUserPrompt({
   title,
