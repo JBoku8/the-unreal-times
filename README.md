@@ -214,3 +214,7 @@ See `.env.example`:
 - `OPENAI_MODEL` (`gpt-5.4-nano` by default)
 - `ADMIN_KEY`
 - `RSS_FEED_URLS` (comma-separated)
+
+## Architecture & Tradeoffs
+
+See [TRADEOFFS.md](./TRADEOFFS.md) for a detailed account of the architectural decisions made in this MVP, what was deliberately simplified, and what the alternatives look like (cron jobs, job queues, semantic search, categorisation, quality evaluation, and more).

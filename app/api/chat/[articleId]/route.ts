@@ -6,6 +6,8 @@ import { articles, conversations, rawArticles } from "@/src/db/schema";
 import type { ArticleRow, RawArticleRow } from "@/src/db/types";
 import { resolveChatModel } from "@/src/ai/provider";
 import { buildArticleChatSystemPrompt } from "@/src/ai/prompts";
+import { env } from "@/src/env";
+import { enforceChatRateLimit } from "@/src/redis/rate-limit";
 import {
   chatQuerySchema,
   chatRequestSchema,
@@ -76,6 +78,26 @@ export async function POST(
   const browserId = parsedQuery.data.browserId || parsed.data.browserId || "";
   if (!browserId) {
     return NextResponse.json({ error: "browserId is required" }, { status: 400 });
+  }
+
+  const rateLimit = await enforceChatRateLimit(browserId);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        code: "RATE_LIMIT_EXCEEDED",
+        retryAfterSeconds: rateLimit.resetSeconds,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.resetSeconds),
+          "X-RateLimit-Limit": String(env.CHAT_RATE_LIMIT_MAX_REQUESTS),
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.resetSeconds),
+        },
+      },
+    );
   }
   const requestedConversationId =
     parsedQuery.data.conversationId || parsed.data.conversationId;

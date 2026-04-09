@@ -28,9 +28,21 @@ export function ChatPanel({ articleId, articleTitle, framed = true }: ChatPanelP
     newConversationMutation,
   } = useChatSession(articleId);
 
+  const errorMessage = error?.message ?? "";
+  const isRateLimited =
+    errorMessage.toLowerCase().includes("rate limit") ||
+    errorMessage.includes("429") ||
+    errorMessage.includes("RATE_LIMIT_EXCEEDED");
+  const retryAfterMatch = errorMessage.match(/retryAfterSeconds["\s:=]+(\d+)/i);
+  const retryAfterSeconds = retryAfterMatch ? Number.parseInt(retryAfterMatch[1] ?? "0", 10) : 0;
+
   const canSend = input.trim().length > 0 && !isLoading && browserId.length >= 8;
   const helperText = error
-    ? "Request failed. Update your message and try again."
+    ? isRateLimited
+      ? retryAfterSeconds > 0
+        ? `Rate limit reached. Try again in ${retryAfterSeconds}s.`
+        : "Rate limit reached. Please wait a minute before trying again."
+      : "Request failed. Update your message and try again."
     : isLoading
       ? "Assistant is responding..."
       : "Enter to send · Shift+Enter for newline";
