@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/rss_chat
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rss_chat
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
+  redis_data:

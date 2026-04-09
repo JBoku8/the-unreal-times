@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+out/
+build/
+
+# Lock files (large, low signal)
+pnpm-lock.yaml
+
+# Drizzle migration snapshots (machine-generated JSON, keep in git but not in context)
+src/db/migrations/meta/
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Docker
+.dockerignore
+
+# Misc
+.DS_Store
+*.pem
